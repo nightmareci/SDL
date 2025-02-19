@@ -387,7 +387,7 @@ struct SDL_VideoData
 
     DWORD clipboard_count;
 
-#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) // Xbox doesn't support user32/shcore
+#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (WINVER >= 0xA00) // Xbox doesn't support user32/shcore
     // Touch input functions
     SDL_SharedObject *userDLL;
     /* *INDENT-OFF* */ // clang-format off

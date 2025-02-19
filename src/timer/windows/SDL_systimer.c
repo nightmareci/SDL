@@ -24,6 +24,43 @@
 
 #include "../../core/windows/SDL_windows.h"
 
+Uint64 SDL_GetPerformanceCounter(void)
+{
+    LARGE_INTEGER counter;
+    const BOOL rc = QueryPerformanceCounter(&counter);
+    SDL_assert(rc != 0); // this should _never_ fail if you're on XP or later.
+    return (Uint64)counter.QuadPart;
+}
+
+Uint64 SDL_GetPerformanceFrequency(void)
+{
+    LARGE_INTEGER frequency;
+    const BOOL rc = QueryPerformanceFrequency(&frequency);
+    SDL_assert(rc != 0); // this should _never_ fail if you're on XP or later.
+    return (Uint64)frequency.QuadPart;
+}
+
+static void SDL_CleanupWaitableHandle(void *handle)
+{
+    CloseHandle(handle);
+}
+
+static HANDLE SDL_GetWaitableEvent(void)
+{
+    static SDL_TLSID TLS_event_handle;
+    HANDLE event;
+
+    event = SDL_GetTLS(&TLS_event_handle);
+    if (!event) {
+        event = CreateEvent(NULL, FALSE, FALSE, NULL);
+        if (event) {
+            SDL_SetTLS(&TLS_event_handle, event, SDL_CleanupWaitableHandle);
+        }
+    }
+    return event;
+}
+
+#if WINVER >= 0x0601
 /* CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag was added in Windows 10 version 1803. */
 #ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
 #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x2
@@ -34,11 +71,6 @@ static CreateWaitableTimerExW_t pCreateWaitableTimerExW;
 
 typedef BOOL (WINAPI *SetWaitableTimerEx_t)(HANDLE hTimer, const LARGE_INTEGER *lpDueTime, LONG lPeriod, PTIMERAPCROUTINE pfnCompletionRoutine, LPVOID lpArgToCompletionRoutine, PREASON_CONTEXT WakeContext, ULONG TolerableDelay);
 static SetWaitableTimerEx_t pSetWaitableTimerEx;
-
-static void SDL_CleanupWaitableHandle(void *handle)
-{
-    CloseHandle(handle);
-}
 
 static HANDLE SDL_GetWaitableTimer(void)
 {
@@ -72,37 +104,6 @@ static HANDLE SDL_GetWaitableTimer(void)
     return timer;
 }
 
-static HANDLE SDL_GetWaitableEvent(void)
-{
-    static SDL_TLSID TLS_event_handle;
-    HANDLE event;
-
-    event = SDL_GetTLS(&TLS_event_handle);
-    if (!event) {
-        event = CreateEvent(NULL, FALSE, FALSE, NULL);
-        if (event) {
-            SDL_SetTLS(&TLS_event_handle, event, SDL_CleanupWaitableHandle);
-        }
-    }
-    return event;
-}
-
-Uint64 SDL_GetPerformanceCounter(void)
-{
-    LARGE_INTEGER counter;
-    const BOOL rc = QueryPerformanceCounter(&counter);
-    SDL_assert(rc != 0); // this should _never_ fail if you're on XP or later.
-    return (Uint64)counter.QuadPart;
-}
-
-Uint64 SDL_GetPerformanceFrequency(void)
-{
-    LARGE_INTEGER frequency;
-    const BOOL rc = QueryPerformanceFrequency(&frequency);
-    SDL_assert(rc != 0); // this should _never_ fail if you're on XP or later.
-    return (Uint64)frequency.QuadPart;
-}
-
 void SDL_SYS_DelayNS(Uint64 ns)
 {
     HANDLE timer = SDL_GetWaitableTimer();
@@ -129,5 +130,71 @@ void SDL_SYS_DelayNS(Uint64 ns)
 
     Sleep(delay);
 }
+#else
+typedef HANDLE (WINAPI *CreateWaitableTimerW_t)(LPSECURITY_ATTRIBUTES lpTimerAttributes, BOOL bManualReset, LPCWSTR lpTimerName);
+static CreateWaitableTimerW_t pCreateWaitableTimerW;
+
+typedef BOOL (WINAPI *SetWaitableTimer_t)(HANDLE hTimer, const LARGE_INTEGER *lpDueTime, LONG lPeriod, PTIMERAPCROUTINE pfnCompletionRoutine, LPVOID lpArgToCompletionRoutine, BOOL fResume);
+static SetWaitableTimer_t pSetWaitableTimer;
+
+static HANDLE SDL_GetWaitableTimer(void)
+{
+    static SDL_TLSID TLS_timer_handle;
+    HANDLE timer;
+
+    if (!pCreateWaitableTimerW || !pSetWaitableTimer) {
+        static bool initialized;
+
+        if (!initialized) {
+            HMODULE module = GetModuleHandle(TEXT("kernel32.dll"));
+            if (module) {
+                pCreateWaitableTimerW = (CreateWaitableTimerW_t)GetProcAddress(module, "CreateWaitableTimerW");
+                pSetWaitableTimer = (SetWaitableTimer_t)GetProcAddress(module, "SetWaitableTimer");
+            }
+            initialized = true;
+        }
+
+        if (!pCreateWaitableTimerW || !pSetWaitableTimer) {
+            return NULL;
+        }
+    }
+
+    timer = SDL_GetTLS(&TLS_timer_handle);
+    if (!timer) {
+        timer = pCreateWaitableTimerW(NULL, TRUE, NULL);
+        if (timer) {
+            SDL_SetTLS(&TLS_timer_handle, timer, SDL_CleanupWaitableHandle);
+        }
+    }
+    return timer;
+}
+
+void SDL_SYS_DelayNS(Uint64 ns)
+{
+    HANDLE timer = SDL_GetWaitableTimer();
+    if (timer) {
+        LARGE_INTEGER due_time;
+        due_time.QuadPart = -((LONGLONG)ns / 100);
+        if (pSetWaitableTimer(timer, &due_time, 0, NULL, NULL, 0)) {
+            WaitForSingleObject(timer, INFINITE);
+        }
+        return;
+    }
+
+    const Uint64 max_delay = 0xffffffffLL * SDL_NS_PER_MS;
+    if (ns > max_delay) {
+        ns = max_delay;
+    }
+    const DWORD delay = (DWORD)SDL_NS_TO_MS(ns);
+
+    HANDLE event = SDL_GetWaitableEvent();
+    if (event) {
+        WaitForSingleObjectEx(event, delay, FALSE);
+        return;
+    }
+
+    Sleep(delay);
+}
+#endif
 
 #endif // SDL_TIMER_WINDOWS

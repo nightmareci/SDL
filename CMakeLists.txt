@@ -1928,6 +1928,23 @@ elseif(WINDOWS)
 
     check_include_file(d3d9.h HAVE_D3D9_H)
     check_include_file(d3d11_1.h HAVE_D3D11_H)
+    list(APPEND CMAKE_REQUIRED_INCLUDES
+      "${SDL3_SOURCE_DIR}/include/SDL3"
+      "${SDL3_SOURCE_DIR}/src/video/directx"
+    )
+    check_c_source_compiles("
+      #include \"SDL_platform_defines.h\"
+      #if defined(SDL_PLATFORM_XBOXONE)
+      #include <d3d12_x.h>
+      #elif defined(SDL_PLATFORM_XBOXSERIES)
+      #include <d3d12_xs.h>
+      #else
+      #include \"d3d12.h\"
+      #endif
+      int main(int argc, char **argv) { return 0; }
+    " HAVE_D3D12)
+    list(POP_BACK CMAKE_REQUIRED_INCLUDES)
+    list(POP_BACK CMAKE_REQUIRED_INCLUDES)
     check_include_file(ddraw.h HAVE_DDRAW_H)
     check_include_file(dsound.h HAVE_DSOUND_H)
     check_include_file(dinput.h HAVE_DINPUT_H)
@@ -2016,7 +2033,7 @@ elseif(WINDOWS)
       set(SDL_VIDEO_RENDER_D3D11 1)
       set(HAVE_RENDER_D3D11 TRUE)
     endif()
-    if(SDL_RENDER_D3D12)
+    if(SDL_RENDER_D3D12 AND HAVE_D3D12)
       set(SDL_VIDEO_RENDER_D3D12 1)
       set(HAVE_RENDER_D3D12 TRUE)
     endif()

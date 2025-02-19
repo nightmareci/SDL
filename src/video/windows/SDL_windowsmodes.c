@@ -250,6 +250,7 @@ static float WIN_GetContentScale(SDL_VideoDevice *_this, HMONITOR hMonitor)
     const SDL_VideoData *videodata = (const SDL_VideoData *)_this->internal;
     int dpi = 0;
 
+#if WINVER >= 0xA00
     if (videodata->GetDpiForMonitor) {
         UINT hdpi_uint, vdpi_uint;
         if (videodata->GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &hdpi_uint, &vdpi_uint) == S_OK) {
@@ -264,6 +265,7 @@ static float WIN_GetContentScale(SDL_VideoDevice *_this, HMONITOR hMonitor)
             ReleaseDC(NULL, hdc);
         }
     }
+#endif
     if (dpi == 0) {
         // Safe default
         dpi = USER_DEFAULT_SCREEN_DPI;
@@ -311,6 +313,7 @@ static bool WIN_GetDisplayMode(SDL_VideoDevice *_this, void *dxgi_output, HMONIT
 
 static char *WIN_GetDisplayNameVista(SDL_VideoData *videodata, const WCHAR *deviceName)
 {
+#if WINVER >= 0x600
     DISPLAYCONFIG_PATH_INFO *paths = NULL;
     DISPLAYCONFIG_MODE_INFO *modes = NULL;
     char *result = NULL;
@@ -385,6 +388,7 @@ WIN_GetDisplayNameVista_failed:
     SDL_free(result);
     SDL_free(paths);
     SDL_free(modes);
+#endif
     return NULL;
 }
 

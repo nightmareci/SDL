@@ -101,7 +101,7 @@ static void WIN_DeleteDevice(SDL_VideoDevice *device)
     SDL_VideoData *data = device->internal;
 
     SDL_UnregisterApp();
-#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
+#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (WINVER >= 0xA00)
     if (data->userDLL) {
         SDL_UnloadObject(data->userDLL);
     }
@@ -148,7 +148,7 @@ static SDL_VideoDevice *WIN_CreateDevice(void)
     device->wakeup_lock = SDL_CreateMutex();
     device->system_theme = WIN_GetSystemTheme();
 
-#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
+#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (WINVER >= 0xA00)
     data->userDLL = SDL_LoadObject("USER32.DLL");
     if (data->userDLL) {
         /* *INDENT-OFF* */ // clang-format off
@@ -184,7 +184,7 @@ static SDL_VideoDevice *WIN_CreateDevice(void)
     } else {
         SDL_ClearError();
     }
-#endif // #if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
+#endif // #if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (WINVER >= 0xA00)
 
 #ifdef HAVE_DXGI_H
     data->dxgiDLL = SDL_LoadObject("DXGI.DLL");
@@ -344,7 +344,7 @@ VideoBootStrap WINDOWS_bootstrap = {
 
 static BOOL WIN_DeclareDPIAwareUnaware(SDL_VideoDevice *_this)
 {
-#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
+#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (WINVER >= 0xA00)
     SDL_VideoData *data = _this->internal;
 
     if (data->SetProcessDpiAwarenessContext) {
@@ -359,7 +359,7 @@ static BOOL WIN_DeclareDPIAwareUnaware(SDL_VideoDevice *_this)
 
 static BOOL WIN_DeclareDPIAwareSystem(SDL_VideoDevice *_this)
 {
-#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
+#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (WINVER >= 0xA00)
     SDL_VideoData *data = _this->internal;
 
     if (data->SetProcessDpiAwarenessContext) {
@@ -378,7 +378,7 @@ static BOOL WIN_DeclareDPIAwareSystem(SDL_VideoDevice *_this)
 
 static BOOL WIN_DeclareDPIAwarePerMonitor(SDL_VideoDevice *_this)
 {
-#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
+#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (WINVER >= 0xA00)
     SDL_VideoData *data = _this->internal;
 
     if (data->SetProcessDpiAwarenessContext) {
@@ -398,7 +398,7 @@ static BOOL WIN_DeclareDPIAwarePerMonitor(SDL_VideoDevice *_this)
 
 static BOOL WIN_DeclareDPIAwarePerMonitorV2(SDL_VideoDevice *_this)
 {
-#if defined(SDL_PLATFORM_XBOXONE) || defined(SDL_PLATFORM_XBOXSERIES)
+#if defined(SDL_PLATFORM_XBOXONE) || defined(SDL_PLATFORM_XBOXSERIES) || (WINVER < 0xA00)
     return FALSE;
 #else
     SDL_VideoData *data = _this->internal;
@@ -759,7 +759,7 @@ SDL_SystemTheme WIN_GetSystemTheme(void)
 
 bool WIN_IsPerMonitorV2DPIAware(SDL_VideoDevice *_this)
 {
-#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
+#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (WINVER >= 0xA00)
     SDL_VideoData *data = _this->internal;
 
     if (data->AreDpiAwarenessContextsEqual && data->GetThreadDpiAwarenessContext) {

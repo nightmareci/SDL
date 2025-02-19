@@ -1179,6 +1179,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
     case WM_POINTERENTER:
     {
+#if WINVER >= 0xA00
         if (!data->videodata->GetPointerType) {
             break;  // Not on Windows8 or later? We shouldn't get this event, but just in case...
         }
@@ -1207,11 +1208,13 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         info.subtype = SDL_PEN_TYPE_PENCIL;
         SDL_AddPenDevice(0, NULL, &info, hpointer);
         returnCode = 0;
+#endif
     } break;
 
     case WM_POINTERCAPTURECHANGED:
     case WM_POINTERLEAVE:
     {
+#if WINVER >= 0xA00
         const UINT32 pointerid = GET_POINTERID_WPARAM(wParam);
         void *hpointer = (void *) (size_t) pointerid;
         const SDL_PenID pen = SDL_FindPenByHandle(hpointer);
@@ -1224,9 +1227,11 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             SDL_RemovePenDevice(WIN_GetEventTimestamp(), pen);
         }
         returnCode = 0;
+#endif
     } break;
 
     case WM_POINTERUPDATE: {
+#if WINVER >= 0xA00
         POINTER_INPUT_TYPE pointer_type = PT_POINTER;
         if (!data->videodata->GetPointerType || !data->videodata->GetPointerType(GET_POINTERID_WPARAM(wParam), &pointer_type)) {
             break;  // oh well.
@@ -1237,11 +1242,13 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             returnCode = 0;
             break;
         }
+#endif
     }
     SDL_FALLTHROUGH;
 
     case WM_POINTERDOWN:
     case WM_POINTERUP: {
+#if WINVER >= 0xA00
         POINTER_PEN_INFO pen_info;
         const UINT32 pointerid = GET_POINTERID_WPARAM(wParam);
         void *hpointer = (void *) (size_t) pointerid;
@@ -1291,6 +1298,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
 
         returnCode = 0;
+#endif
     } break;
 
     case WM_MOUSEMOVE:
@@ -1968,6 +1976,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         break;
 
     case WM_TOUCH:
+#if WINVER >= 0xA00
         if (data->videodata->GetTouchInputInfo && data->videodata->CloseTouchInputHandle) {
             UINT i, num_inputs = LOWORD(wParam);
             bool isstack;
@@ -2033,6 +2042,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             data->videodata->CloseTouchInputHandle((HTOUCHINPUT)lParam);
             return 0;
         }
+#endif
         break;
 
 #ifdef HAVE_TPCSHRD_H
@@ -2180,6 +2190,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     } break;
 
     case WM_GETDPISCALEDSIZE:
+#if WINVER >= 0xA00
         // Windows 10 Creators Update+
         /* Documented as only being sent to windows that are per-monitor V2 DPI aware.
 
@@ -2244,9 +2255,11 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 #endif
             return TRUE;
         }
+#endif
         break;
 
     case WM_DPICHANGED:
+#if WINVER >= 0xA00
         // Windows 8.1+
         {
             const int newDPI = HIWORD(wParam);
@@ -2301,6 +2314,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             data->expected_resize = false;
             return 0;
         }
+#endif
         break;
 
     case WM_SETTINGCHANGE:
