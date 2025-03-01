@@ -1179,7 +1179,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
     case WM_POINTERENTER:
     {
-#if WINVER >= 0xA00
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
         if (!data->videodata->GetPointerType) {
             break;  // Not on Windows8 or later? We shouldn't get this event, but just in case...
         }
@@ -1214,7 +1214,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     case WM_POINTERCAPTURECHANGED:
     case WM_POINTERLEAVE:
     {
-#if WINVER >= 0xA00
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
         const UINT32 pointerid = GET_POINTERID_WPARAM(wParam);
         void *hpointer = (void *) (size_t) pointerid;
         const SDL_PenID pen = SDL_FindPenByHandle(hpointer);
@@ -1231,7 +1231,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     } break;
 
     case WM_POINTERUPDATE: {
-#if WINVER >= 0xA00
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
         POINTER_INPUT_TYPE pointer_type = PT_POINTER;
         if (!data->videodata->GetPointerType || !data->videodata->GetPointerType(GET_POINTERID_WPARAM(wParam), &pointer_type)) {
             break;  // oh well.
@@ -1248,7 +1248,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
     case WM_POINTERDOWN:
     case WM_POINTERUP: {
-#if WINVER >= 0xA00
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
         POINTER_PEN_INFO pen_info;
         const UINT32 pointerid = GET_POINTERID_WPARAM(wParam);
         void *hpointer = (void *) (size_t) pointerid;
@@ -1976,7 +1976,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         break;
 
     case WM_TOUCH:
-#if WINVER >= 0xA00
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
         if (data->videodata->GetTouchInputInfo && data->videodata->CloseTouchInputHandle) {
             UINT i, num_inputs = LOWORD(wParam);
             bool isstack;
@@ -2190,7 +2190,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     } break;
 
     case WM_GETDPISCALEDSIZE:
-#if WINVER >= 0xA00
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
         // Windows 10 Creators Update+
         /* Documented as only being sent to windows that are per-monitor V2 DPI aware.
 
@@ -2259,7 +2259,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         break;
 
     case WM_DPICHANGED:
-#if WINVER >= 0xA00
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
         // Windows 8.1+
         {
             const int newDPI = HIWORD(wParam);

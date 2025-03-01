@@ -762,7 +762,6 @@ endmacro()
 macro(CheckVulkan)
   if(SDL_VULKAN)
     set(SDL_VIDEO_VULKAN 1)
-    set(HAVE_VULKAN TRUE)
     if(SDL_RENDER_VULKAN)
       set(SDL_VIDEO_RENDER_VULKAN 1)
       set(HAVE_RENDER_VULKAN TRUE)
@@ -1306,3 +1305,27 @@ macro(CheckLibUnwind)
     endif()
   endif()
 endmacro()
+
+function(CheckWindowsHeaders CHECK_VAR TARGET_WINVER)
+  if(WIN32)
+    # This has to be a function, not a macro, because ARGV isn't a real CMake
+    # variable in macros, only functions. list(SUBLIST) requires that the input
+    # list argument be a real variable.
+    list(SUBLIST ARGV 2 -1 _HEADERS)
+    set(_INCLUDES "")
+    foreach(_HEADER ${_HEADERS})
+      string(APPEND _INCLUDES "#include <${_HEADER}>
+")
+    endforeach()
+    set(CMAKE_REQUIRED_INCLUDES "${SDL3_SOURCE_DIR}" "${SDL3_SOURCE_DIR}/include")
+    check_c_source_compiles("
+      #include <src/core/windows/SDL_winver.h>
+      #if _WIN32_WINNT < ${TARGET_WINVER}
+      #error _WIN32_WINNT < ${TARGET_WINVER}
+      #endif
+      ${_INCLUDES}
+      int main(int argc, char **argv) { return 0; }
+    " ${CHECK_VAR})
+    set(${CHECK_VAR} "${${CHECK_VAR}}" PARENT_SCOPE)
+  endif()
+endfunction()

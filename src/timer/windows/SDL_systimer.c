@@ -60,7 +60,7 @@ static HANDLE SDL_GetWaitableEvent(void)
     return event;
 }
 
-#if WINVER >= 0x0601
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN7
 /* CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag was added in Windows 10 version 1803. */
 #ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
 #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x2
@@ -130,6 +130,7 @@ void SDL_SYS_DelayNS(Uint64 ns)
 
     Sleep(delay);
 }
+
 #else
 typedef HANDLE (WINAPI *CreateWaitableTimerW_t)(LPSECURITY_ATTRIBUTES lpTimerAttributes, BOOL bManualReset, LPCWSTR lpTimerName);
 static CreateWaitableTimerW_t pCreateWaitableTimerW;
@@ -195,6 +196,6 @@ void SDL_SYS_DelayNS(Uint64 ns)
 
     Sleep(delay);
 }
-#endif
+#endif // _WIN32_WINNT >= _WIN32_WINNT_WIN7
 
 #endif // SDL_TIMER_WINDOWS

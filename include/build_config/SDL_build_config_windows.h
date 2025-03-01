@@ -24,31 +24,7 @@
 #define SDL_build_config_h_
 
 #include <SDL3/SDL_platform_defines.h>
-
-/* winsdkver.h defines _WIN32_MAXVER for SDK version detection. It is present since at least the Windows 7 SDK,
- * but out of caution we'll only use it if the compiler supports __has_include() to confirm its presence.
- * If your compiler doesn't support __has_include() but you have winsdkver.h, define HAVE_WINSDKVER_H.  */
-#if !defined(HAVE_WINSDKVER_H) && defined(__has_include)
-#if __has_include(<winsdkver.h>)
-#define HAVE_WINSDKVER_H 1
-#endif
-#endif
-
-#ifdef HAVE_WINSDKVER_H
-#include <winsdkver.h>
-#endif
-
-/* sdkddkver.h defines more specific SDK version numbers. This is needed because older versions of the
- * Windows 10 SDK have broken declarations for the C API for DirectX 12. */
-#if !defined(HAVE_SDKDDKVER_H) && defined(__has_include)
-#if __has_include(<sdkddkver.h>)
-#define HAVE_SDKDDKVER_H 1
-#endif
-#endif
-
-#ifdef HAVE_SDKDDKVER_H
-#include <sdkddkver.h>
-#endif
+#include "../../core/windows/SDL_winver.h"
 
 /* This is a set of defines to configure the SDL features */
 
@@ -84,15 +60,16 @@ typedef unsigned int uintptr_t;
 #define HAVE_DSOUND_H 1
 #define HAVE_DXGI_H 1
 #define HAVE_XINPUT_H 1
-#if defined(_WIN32_MAXVER) && _WIN32_MAXVER >= 0x0A00  /* Windows 10 SDK */
+#if defined(_WIN32_MAXVER) && _WIN32_MAXVER >= _WIN32_WINNT_WIN10  /* Windows 10 SDK */
+#define HAVE_SDL_D3D12_H 1
 #define HAVE_DXGI1_6_H 1
 #define HAVE_WINDOWS_GAMING_INPUT_H 1
 #endif
-#if defined(_WIN32_MAXVER) && _WIN32_MAXVER >= 0x0602  /* Windows 8 SDK */
+#if defined(_WIN32_MAXVER) && _WIN32_MAXVER >= _WIN32_WINNT_WIN8  /* Windows 8 SDK */
 #define HAVE_D3D11_H 1
 #define HAVE_ROAPI_H 1
 #endif
-#if defined(_WIN32_MAXVER) && _WIN32_MAXVER >= 0x0603  /* Windows 8.1 SDK */
+#if defined(_WIN32_MAXVER) && _WIN32_MAXVER >= _WIN32_WINNT_WINBLUE  /* Windows 8.1 SDK */
 #define HAVE_SHELLSCALINGAPI_H 1
 #endif
 #define HAVE_MMDEVICEAPI_H 1
@@ -286,9 +263,6 @@ typedef unsigned int uintptr_t;
 #define SDL_VIDEO_RENDER_VULKAN 1
 
 /* Enable GPU support */
-#ifdef HAVE_D3D11_H
-#define SDL_GPU_D3D11 1
-#endif
 #define SDL_GPU_D3D12 1
 #define SDL_GPU_VULKAN 1
 #define SDL_VIDEO_RENDER_GPU 1

@@ -41,6 +41,7 @@
 #define HAVE_XINPUT_H 1
 #define HAVE_WINDOWS_GAMING_INPUT_H 1
 #define HAVE_D3D11_H 1
+#define HAVE_SDL_D3D12_H 1
 #define HAVE_ROAPI_H 1
 #define HAVE_SHELLSCALINGAPI_H 1
 #define HAVE_MMDEVICEAPI_H 1
@@ -211,9 +212,6 @@
 #define SDL_VIDEO_RENDER_VULKAN 1
 
 /* Enable GPU support */
-#ifdef HAVE_D3D11_H
-#define SDL_GPU_D3D11 1
-#endif
 #define SDL_GPU_D3D12 1
 #define SDL_GPU_VULKAN 1
 #define SDL_VIDEO_RENDER_GPU 1

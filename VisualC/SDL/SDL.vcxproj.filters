@@ -501,6 +501,9 @@
     <ClInclude Include="..\..\src\core\windows\SDL_windows.h">
       <Filter>core\windows</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\core\windows\SDL_winver.h">
+      <Filter>core\windows</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\src\core\windows\SDL_xinput.h">
       <Filter>core\windows</Filter>
     </ClInclude>

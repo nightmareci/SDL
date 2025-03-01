@@ -218,7 +218,8 @@
 #cmakedefine HAVE_GAMEINPUT_H 1
 #cmakedefine HAVE_DXGI_H 1
 #cmakedefine HAVE_DXGI1_6_H 1
-#cmakedefine HAVE_D3D12 1
+#cmakedefine HAVE_D3D11_H 1
+#cmakedefine HAVE_SDL_D3D12_H 1
 
 #cmakedefine HAVE_MMDEVICEAPI_H 1
 #cmakedefine HAVE_TPCSHRD_H 1
@@ -432,7 +433,6 @@
 #cmakedefine SDL_VIDEO_METAL 1
 
 /* Enable GPU support */
-#cmakedefine SDL_GPU_D3D11 1
 #cmakedefine SDL_GPU_D3D12 1
 #cmakedefine SDL_GPU_VULKAN 1
 #cmakedefine SDL_GPU_METAL 1

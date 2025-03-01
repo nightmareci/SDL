@@ -64,7 +64,7 @@
 #define USER_DEFAULT_SCREEN_DPI 96
 #endif
 
-#if WINVER < 0x0601
+#if _WIN32_WINNT < _WIN32_WINNT_WIN7
 // Touch input definitions
 #define TWF_FINETOUCH 1
 #define TWF_WANTPALM  2
@@ -285,7 +285,7 @@ typedef struct DISPLAYCONFIG_TARGET_DEVICE_NAME
 
 #define QDC_ONLY_ACTIVE_PATHS 0x00000002
 
-#endif // WINVER < 0x0601
+#endif // _WIN32_WINNT < _WIN32_WINNT_WIN7
 
 #ifndef HAVE_SHELLSCALINGAPI_H
 
@@ -387,7 +387,7 @@ struct SDL_VideoData
 
     DWORD clipboard_count;
 
-#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (WINVER >= 0xA00) // Xbox doesn't support user32/shcore
+#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (_WIN32_WINNT >= _WIN32_WINNT_WIN10) // Xbox doesn't support user32/shcore
     // Touch input functions
     SDL_SharedObject *userDLL;
     /* *INDENT-OFF* */ // clang-format off
@@ -421,7 +421,7 @@ struct SDL_VideoData
     BOOL (WINAPI *GetPointerPenInfo)(UINT32 pointerId, POINTER_PEN_INFO *penInfo);
 
     /* *INDENT-ON* */ // clang-format on
-#endif                // !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
+#endif                // !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (_WIN32_WINNT >= _WIN32_WINNT_WIN10)
 
 #ifdef HAVE_DXGI_H
     SDL_SharedObject *dxgiDLL;

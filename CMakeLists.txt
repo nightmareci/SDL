@@ -1412,7 +1412,6 @@ if(ANDROID)
       " VULKAN_PASSED_ANDROID_CHECKS)
       if(VULKAN_PASSED_ANDROID_CHECKS)
         set(SDL_VIDEO_VULKAN 1)
-        set(HAVE_VULKAN TRUE)
         if(SDL_RENDER_VULKAN)
           set(SDL_VIDEO_RENDER_VULKAN 1)
           set(HAVE_RENDER_VULKAN TRUE)
@@ -1895,6 +1894,12 @@ elseif(WINDOWS)
     #include <windows.h>
     int main(int argc, char **argv) { return 0; }" HAVE_WIN32_CC)
 
+  # Windows XP is the minimum supported version.
+  CheckWindowsHeaders(WINDOWS_VERSION_SUPPORTED _WIN32_WINNT_WINXP windows.h)
+  if(NOT WINDOWS_VERSION_SUPPORTED)
+    message(FATAL_ERROR "The build target Windows version must be at least Windows XP")
+  endif()
+
   sdl_glob_sources("${SDL3_SOURCE_DIR}/src/core/windows/*.c")
   sdl_glob_sources("${SDL3_SOURCE_DIR}/src/main/windows/*.c")
   sdl_glob_sources("${SDL3_SOURCE_DIR}/src/io/windows/*.c")
@@ -1926,23 +1931,23 @@ elseif(WINDOWS)
       string(APPEND CMAKE_REQUIRED_FLAGS " /I\"$ENV{DXSDK_DIR}\\Include\"")
     endif()
 
-    check_include_file(d3d9.h HAVE_D3D9_H)
-    check_include_file(d3d11_1.h HAVE_D3D11_H)
-    list(APPEND CMAKE_REQUIRED_INCLUDES
-      "${SDL3_SOURCE_DIR}/include/SDL3"
-      "${SDL3_SOURCE_DIR}/src/video/directx"
-    )
+    CheckWindowsHeaders(HAVE_D3D9_H _WIN32_WINNT_WINXP d3d9.h)
+    CheckWindowsHeaders(HAVE_D3D11_H _WIN32_WINNT_WIN7 d3d11_1.h)
+    list(APPEND CMAKE_REQUIRED_INCLUDES "${SDL3_SOURCE_DIR}" "${SDL3_SOURCE_DIR}/include")
     check_c_source_compiles("
-      #include \"SDL_platform_defines.h\"
+      #include <src/core/windows/SDL_winver.h>
+      #if _WIN32_WINNT < _WIN32_WINNT_WIN10
+      #error _WIN32_WINNT < _WIN32_WINNT_WIN10
+      #endif
       #if defined(SDL_PLATFORM_XBOXONE)
       #include <d3d12_x.h>
       #elif defined(SDL_PLATFORM_XBOXSERIES)
       #include <d3d12_xs.h>
       #else
-      #include \"d3d12.h\"
+      #include <src/video/directx/d3d12.h>
       #endif
       int main(int argc, char **argv) { return 0; }
-    " HAVE_D3D12)
+    " HAVE_SDL_D3D12_H)
     list(POP_BACK CMAKE_REQUIRED_INCLUDES)
     list(POP_BACK CMAKE_REQUIRED_INCLUDES)
     check_include_file(ddraw.h HAVE_DDRAW_H)
@@ -1951,7 +1956,7 @@ elseif(WINDOWS)
     if(SDL_CPU_ARM32)  # !!! FIXME: this should probably check if we're !(x86 or x86-64) instead of arm.
       set(HAVE_DINPUT_H 0)
     endif()
-    check_include_file(dxgi.h HAVE_DXGI_H)
+    CheckWindowsHeaders(HAVE_DXGI_H _WIN32_WINNT_VISTA dxgi.h)
     cmake_pop_check_state()
     if(HAVE_D3D9_H OR HAVE_D3D11_H OR HAVE_DDRAW_H OR HAVE_DSOUND_H OR HAVE_DINPUT_H)
       set(HAVE_DIRECTX TRUE)
@@ -1969,40 +1974,46 @@ elseif(WINDOWS)
 
   if(SDL_XINPUT)
     # xinput.h may need windows.h, but does not include it itself.
-    check_c_source_compiles("
-      #include <windows.h>
-      #include <xinput.h>
-      int main(int argc, char **argv) { return 0; }" HAVE_XINPUT_H)
+    CheckWindowsHeaders(HAVE_XINPUT_H _WIN32_WINNT_WINXP windows.h xinput.h)
   endif()
 
   # headers needed elsewhere
+  list(APPEND CMAKE_REQUIRED_INCLUDES "${SDL3_SOURCE_DIR}" "${SDL3_SOURCE_DIR}/include")
   check_c_source_compiles("
+    #include <src/core/windows/SDL_winver.h>
+    #if _WIN32_WINNT < _WIN32_WINNT_WIN10
+    #error _WIN32_WINNT < _WIN32_WINNT_WIN10
+    #endif
     #define COBJMACROS
     #include <windows.gaming.input.h>
     static __x_ABI_CWindows_CGaming_CInput_CIGamepadStatics2 *s2;
-    int main(int argc, char **argv) { return 0; }" HAVE_WINDOWS_GAMING_INPUT_H
-  )
+    int main(int argc, char **argv) { return 0; }
+  " HAVE_WINDOWS_GAMING_INPUT_H)
   check_c_source_compiles("
+    #include <src/core/windows/SDL_winver.h>
+    #if _WIN32_WINNT < _WIN32_WINNT_WIN10
+    #error _WIN32_WINNT < _WIN32_WINNT_WIN10
+    #endif
     #include <stdbool.h>
     #define COBJMACROS
     #include <gameinput.h>
-    int main(int argc, char **argv) { return 0; }" HAVE_GAMEINPUT_H
-  )
-  check_include_file(dxgi1_6.h HAVE_DXGI1_6_H)
-  check_include_file(tpcshrd.h HAVE_TPCSHRD_H)
-  check_include_file(roapi.h HAVE_ROAPI_H)
-  check_include_file(mmdeviceapi.h HAVE_MMDEVICEAPI_H)
-  check_include_file(audioclient.h HAVE_AUDIOCLIENT_H)
-  check_include_file(sensorsapi.h HAVE_SENSORSAPI_H)
-  check_include_file(shellscalingapi.h HAVE_SHELLSCALINGAPI_H)
-  check_c_source_compiles("
-    #include <windows.h>
-    #include <mfapi.h>
-    #include <mfidl.h>
-    #include <mfreadwrite.h>
     int main(int argc, char **argv) { return 0; }
-    " HAVE_MFAPI_H
+  " HAVE_GAMEINPUT_H)
+  list(POP_BACK CMAKE_REQUIRED_INCLUDES)
+  list(POP_BACK CMAKE_REQUIRED_INCLUDES)
+  CheckWindowsHeaders(HAVE_MFAPI_H _WIN32_WINNT_WIN7
+    windows.h
+    mfapi.h
+    mfidl.h
+    mfreadwrite.h
   )
+  CheckWindowsHeaders(HAVE_DXGI1_6_H _WIN32_WINNT_WIN10 dxgi1_6.h)
+  CheckWindowsHeaders(HAVE_TPCSHRD_H _WIN32_WINNT_WINXP tpcshrd.h)
+  CheckWindowsHeaders(HAVE_ROAPI_H _WIN32_WINNT_WIN8 roapi.h)
+  CheckWindowsHeaders(HAVE_MMDEVICEAPI_H _WIN32_WINNT_VISTA mmdeviceapi.h)
+  CheckWindowsHeaders(HAVE_AUDIOCLIENT_H _WIN32_WINNT_VISTA audioclient.h)
+  CheckWindowsHeaders(HAVE_SENSORSAPI_H _WIN32_WINNT_WIN7 sensorsapi.h)
+  CheckWindowsHeaders(HAVE_SHELLSCALINGAPI_H _WIN32_WINNT_WIN10 shellscalingapi.h)
 
   if(SDL_AUDIO)
     if(HAVE_DSOUND_H)
@@ -2033,7 +2044,7 @@ elseif(WINDOWS)
       set(SDL_VIDEO_RENDER_D3D11 1)
       set(HAVE_RENDER_D3D11 TRUE)
     endif()
-    if(SDL_RENDER_D3D12 AND HAVE_D3D12)
+    if(SDL_RENDER_D3D12 AND HAVE_SDL_D3D12_H)
       set(SDL_VIDEO_RENDER_D3D12 1)
       set(HAVE_RENDER_D3D12 TRUE)
     endif()
@@ -2117,11 +2128,14 @@ elseif(WINDOWS)
     endif()
 
     if(SDL_VULKAN)
-      set(SDL_VIDEO_VULKAN 1)
-      set(HAVE_VULKAN TRUE)
-      if(SDL_RENDER_VULKAN)
-        set(SDL_VIDEO_RENDER_VULKAN 1)
-        set(HAVE_RENDER_VULKAN TRUE)
+      # Windows 7 or higher supports Vulkan, if the system does.
+      CheckWindowsHeaders(HAVE_VULKAN _WIN32_WINNT_WIN7 windows.h)
+      if(HAVE_VULKAN)
+        set(SDL_VIDEO_VULKAN 1)
+        if(SDL_RENDER_VULKAN)
+          set(SDL_VIDEO_RENDER_VULKAN 1)
+          set(HAVE_RENDER_VULKAN TRUE)
+        endif()
       endif()
     endif()
 
@@ -2380,14 +2394,7 @@ elseif(APPLE)
       if(HAVE_FRAMEWORK_METAL)
         set(SDL_FRAMEWORK_METAL 1)
         set(SDL_FRAMEWORK_QUARTZCORE 1)
-        if(SDL_VULKAN)
-          set(SDL_VIDEO_VULKAN 1)
-          set(HAVE_VULKAN TRUE)
-          if(SDL_RENDER_VULKAN)
-            set(SDL_VIDEO_RENDER_VULKAN 1)
-            set(HAVE_RENDER_VULKAN TRUE)
-          endif()
-        endif()
+        CheckVulkan()
         if(SDL_METAL)
           set(SDL_VIDEO_METAL 1)
           set(HAVE_METAL TRUE)
@@ -2399,6 +2406,7 @@ elseif(APPLE)
         endif()
         if (SDL_GPU)
           set(SDL_GPU_METAL 1)
+          set(HAVE_SDL_GPU)
           sdl_glob_sources("${SDL3_SOURCE_DIR}/src/gpu/metal/*.m")
         endif()
       endif()
@@ -3028,12 +3036,7 @@ endif()
 sdl_glob_sources(${SDL3_SOURCE_DIR}/src/tray/*.c)
 
 if(SDL_GPU)
-  if(HAVE_D3D11_H)
-    sdl_glob_sources("${SDL3_SOURCE_DIR}/src/gpu/d3d11/*.c")
-    set(SDL_GPU_D3D11 1)
-    set(HAVE_SDL_GPU TRUE)
-  endif()
-  if(SDL_RENDER_D3D12)
+  if(HAVE_SDL_D3D12_H)
     sdl_glob_sources("${SDL3_SOURCE_DIR}/src/gpu/d3d12/*.c")
     set(SDL_GPU_D3D12 1)
     set(HAVE_SDL_GPU TRUE)
@@ -3043,7 +3046,10 @@ if(SDL_GPU)
     set(SDL_GPU_VULKAN 1)
     set(HAVE_SDL_GPU TRUE)
   endif()
-  if(SDL_RENDER_GPU)
+  if(NOT HAVE_SDL_GPU)
+    set(SDL_GPU_DISABLED 1)
+  endif()
+  if(SDL_RENDER_GPU AND HAVE_SDL_GPU)
     set(SDL_VIDEO_RENDER_GPU 1)
     set(HAVE_RENDER_GPU TRUE)
   endif()

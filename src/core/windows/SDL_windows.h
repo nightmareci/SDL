@@ -21,60 +21,10 @@
 
 // This is an include file for windows.h with the SDL build settings
 
-#ifndef _INCLUDED_WINDOWS_H
-#define _INCLUDED_WINDOWS_H
+#ifndef SDL_windows_h_
+#define SDL_windows_h_
 
-#ifdef SDL_PLATFORM_WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN 1
-#endif
-#ifndef STRICT
-#define STRICT 1
-#endif
-#ifndef UNICODE
-#define UNICODE 1
-#endif
-#undef WINVER
-#undef _WIN32_WINNT
-#if defined(HAVE_D3D12) || defined(HAVE_DXGI1_6_H)
-#define _WIN32_WINNT 0xA00 // For D3D12, 0xA00 is required
-#elif defined(HAVE_SHELLSCALINGAPI_H)
-#define _WIN32_WINNT 0x603 // For DPI support
-#else
-#define _WIN32_WINNT 0x501 // Need 0x410 for AlphaBlend() and 0x500 for EnumDisplayDevices(), 0x501 for raw input
-#endif
-#define WINVER _WIN32_WINNT
-
-#elif defined(SDL_PLATFORM_WINGDK)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN 1
-#endif
-#ifndef STRICT
-#define STRICT 1
-#endif
-#ifndef UNICODE
-#define UNICODE 1
-#endif
-#undef WINVER
-#undef _WIN32_WINNT
-#define _WIN32_WINNT 0xA00
-#define WINVER       _WIN32_WINNT
-
-#elif defined(SDL_PLATFORM_XBOXONE) || defined(SDL_PLATFORM_XBOXSERIES)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN 1
-#endif
-#ifndef STRICT
-#define STRICT 1
-#endif
-#ifndef UNICODE
-#define UNICODE 1
-#endif
-#undef WINVER
-#undef _WIN32_WINNT
-#define _WIN32_WINNT 0xA00
-#define WINVER       _WIN32_WINNT
-#endif
+#include "SDL_winver.h"
 
 // See https://github.com/libsdl-org/SDL/pull/7607
 // force_align_arg_pointer attribute requires gcc >= 4.2.x.
@@ -89,6 +39,15 @@
 #define MINGW32_FORCEALIGN
 #endif
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN 1
+#endif
+#ifndef STRICT
+#define STRICT 1
+#endif
+#ifndef UNICODE
+#define UNICODE 1
+#endif
 #include <windows.h>
 #include <basetyps.h> // for REFIID with broken mingw.org headers
 #include <mmreg.h>
@@ -169,4 +128,4 @@ extern int WIN_WideCharToMultiByte(UINT CodePage, DWORD dwFlags, LPCWCH lpWideCh
 }
 #endif
 
-#endif // _INCLUDED_WINDOWS_H
+#endif // SDL_windows_h_

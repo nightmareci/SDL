@@ -163,7 +163,7 @@ bool SDL_SYS_CopyFile(const char *oldpath, const char *newpath)
     }
 
     const BOOL rc = CopyFileExW(woldpath, wnewpath, NULL, NULL, NULL, COPY_FILE_ALLOW_DECRYPTED_DESTINATION
-#if WINVER >= 0x600
+#if _WIN32_WINNT >= _WIN32_WINNT_VISTA
         |COPY_FILE_NO_BUFFERING
 #endif
     );

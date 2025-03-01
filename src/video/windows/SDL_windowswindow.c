@@ -230,7 +230,9 @@ static DWORD GetWindowStyleEx(SDL_Window *window)
  */
 static bool WIN_AdjustWindowRectWithStyle(SDL_Window *window, DWORD style, DWORD styleEx, BOOL menu, int *x, int *y, int *width, int *height, SDL_WindowRect rect_type)
 {
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
     SDL_VideoData *videodata = SDL_GetVideoDevice() ? SDL_GetVideoDevice()->internal : NULL;
+#endif
     RECT rect;
 
     // Client rect, in points
@@ -278,7 +280,7 @@ static bool WIN_AdjustWindowRectWithStyle(SDL_Window *window, DWORD style, DWORD
         AdjustWindowRectEx(&rect, style, menu, 0);
 #else
         if (WIN_IsPerMonitorV2DPIAware(SDL_GetVideoDevice())) {
-#if WINVER >= 0xA00
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
             /* With per-monitor v2, the window border/titlebar size depend on the DPI, so we need to call AdjustWindowRectExForDpi instead of
                AdjustWindowRectEx. */
             if (videodata) {
@@ -335,7 +337,9 @@ bool WIN_AdjustWindowRect(SDL_Window *window, int *x, int *y, int *width, int *h
 bool WIN_AdjustWindowRectForHWND(HWND hwnd, LPRECT lpRect, UINT frame_dpi)
 {
     SDL_VideoDevice *videodevice = SDL_GetVideoDevice();
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
     SDL_VideoData *videodata = videodevice ? videodevice->internal : NULL;
+#endif
     DWORD style, styleEx;
     BOOL menu;
 
@@ -351,7 +355,7 @@ bool WIN_AdjustWindowRectForHWND(HWND hwnd, LPRECT lpRect, UINT frame_dpi)
     AdjustWindowRectEx(lpRect, style, menu, styleEx);
 #else
     if (WIN_IsPerMonitorV2DPIAware(videodevice)) {
-#if WINVER >= 0xA00
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN10
         // With per-monitor v2, the window border/titlebar size depend on the DPI, so we need to call AdjustWindowRectExForDpi instead of AdjustWindowRectEx.
         if (!frame_dpi) {
             frame_dpi = videodata->GetDpiForWindow ? videodata->GetDpiForWindow(hwnd) : USER_DEFAULT_SCREEN_DPI;
@@ -595,7 +599,7 @@ static bool SetupWindowData(SDL_VideoDevice *_this, SDL_Window *window, HWND hwn
         WIN_SetWindowAlwaysOnTop(_this, window, false);
     }
 
-#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (WINVER >= 0xA00)
+#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES) && (_WIN32_WINNT >= _WIN32_WINNT_WIN10)
     // Enable multi-touch
     if (videodata->RegisterTouchWindow) {
         videodata->RegisterTouchWindow(hwnd, (TWF_FINETOUCH | TWF_WANTPALM));
