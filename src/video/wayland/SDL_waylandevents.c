@@ -1012,6 +1012,7 @@ static void relative_pointer_handle_relative_motion(void *data,
     struct SDL_WaylandInput *input = data;
     SDL_VideoData *d = input->display;
     SDL_WindowData *window = input->pointer_focus;
+    SDL_Mouse *mouse = SDL_GetMouse();
 
     // Relative pointer event times are in microsecond granularity.
     const Uint64 timestamp = Wayland_GetEventTimestamp(SDL_US_TO_NS(((Uint64)time_hi << 32) | (Uint64)time_lo));
@@ -1019,7 +1020,7 @@ static void relative_pointer_handle_relative_motion(void *data,
     if (input->pointer_focus && d->relative_mouse_mode) {
         double dx;
         double dy;
-        if (!SDL_GetMouse()->enable_relative_system_scale) {
+        if (mouse->InputTransform || !mouse->enable_relative_system_scale) {
             dx = wl_fixed_to_double(dx_unaccel_w);
             dy = wl_fixed_to_double(dy_unaccel_w);
         } else {
@@ -2563,8 +2564,6 @@ static void primary_selection_device_handle_selection(void *data, struct zwp_pri
     SDL_LogTrace(SDL_LOG_CATEGORY_INPUT,
                  ". In zwp_primary_selection_device_v1_listener . primary_selection_device_handle_selection on primary_selection_offer 0x%08x",
                  (id ? WAYLAND_wl_proxy_get_id((struct wl_proxy *)id) : -1));
-
-    notifyFromMimes(offer ? &offer->mimes : NULL);
 }
 
 static const struct zwp_primary_selection_device_v1_listener primary_selection_device_listener = {
