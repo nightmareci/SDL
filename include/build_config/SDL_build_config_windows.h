@@ -24,7 +24,7 @@
 #define SDL_build_config_h_
 
 #include <SDL3/SDL_platform_defines.h>
-#include "../../core/windows/SDL_winver.h"
+#include "../../src/core/windows/SDL_winver.h"
 
 /* This is a set of defines to configure the SDL features */
 
