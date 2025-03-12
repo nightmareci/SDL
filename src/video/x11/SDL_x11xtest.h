@@ -19,13 +19,13 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef SDL_vitagl_pvr_c_h_
-#define SDL_vitagl_pvr_c_h_
+#include "SDL_internal.h"
 
-#include "SDL_vitavideo.h"
+#ifndef SDL_x11xtest_h_
+#define SDL_x11xtest_h_
 
-extern SDL_GLContext VITA_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window *window);
-extern int VITA_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path);
-extern SDL_FunctionPointer VITA_GL_GetProcAddress(SDL_VideoDevice *_this, const char *proc);
+extern void X11_InitXTest(SDL_VideoDevice *_this);
+extern bool X11_XTestIsInitialized(void);
+extern bool X11_WarpMouseXTest(SDL_VideoDevice *_this, SDL_Window *window, float x, float y);
 
-#endif // SDL_vitagl_pvr_c_h_
+#endif // SDL_x11xtest_h_

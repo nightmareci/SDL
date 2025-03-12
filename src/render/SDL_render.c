@@ -462,8 +462,8 @@ static void UpdatePixelClipRect(SDL_Renderer *renderer, SDL_RenderViewState *vie
 {
     const float scale_x = view->current_scale.x;
     const float scale_y = view->current_scale.y;
-    view->pixel_clip_rect.x = (int)SDL_floorf((view->clip_rect.x * scale_x) + view->logical_offset.x);
-    view->pixel_clip_rect.y = (int)SDL_floorf((view->clip_rect.y * scale_y) + view->logical_offset.y);
+    view->pixel_clip_rect.x = (int)SDL_floorf(view->clip_rect.x * scale_x);
+    view->pixel_clip_rect.y = (int)SDL_floorf(view->clip_rect.y * scale_y);
     view->pixel_clip_rect.w = (int)SDL_ceilf(view->clip_rect.w * scale_x);
     view->pixel_clip_rect.h = (int)SDL_ceilf(view->clip_rect.h * scale_y);
 }
@@ -573,6 +573,9 @@ static SDL_RenderCommand *PrepQueueCmdDraw(SDL_Renderer *renderer, const SDL_Ren
             cmd->data.draw.color = *color;
             cmd->data.draw.blend = blendMode;
             cmd->data.draw.texture = texture;
+            if (texture) {
+                cmd->data.draw.texture_scale_mode = texture->scaleMode;
+            }
             cmd->data.draw.texture_address_mode = SDL_TEXTURE_ADDRESS_CLAMP;
         }
     }
@@ -1121,12 +1124,7 @@ SDL_Renderer *SDL_CreateRendererWithProperties(SDL_PropertiesID props)
     }
 
     int vsync = (int)SDL_GetNumberProperty(props, SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, 0);
-    if (!SDL_SetRenderVSync(renderer, vsync)) {
-        if (vsync == 0) {
-            // Some renderers require vsync enabled
-            SDL_SetRenderVSync(renderer, 1);
-        }
-    }
+    SDL_SetRenderVSync(renderer, vsync);
     SDL_CalculateSimulatedVSyncInterval(renderer, window);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_RENDER,
@@ -1964,8 +1962,6 @@ bool SDL_GetTextureBlendMode(SDL_Texture *texture, SDL_BlendMode *blendMode)
 
 bool SDL_SetTextureScaleMode(SDL_Texture *texture, SDL_ScaleMode scaleMode)
 {
-    SDL_Renderer *renderer;
-
     CHECK_TEXTURE_MAGIC(texture, false);
 
     if (scaleMode != SDL_SCALEMODE_NEAREST &&
@@ -1973,12 +1969,10 @@ bool SDL_SetTextureScaleMode(SDL_Texture *texture, SDL_ScaleMode scaleMode)
         return SDL_InvalidParamError("scaleMode");
     }
 
-    renderer = texture->renderer;
     texture->scaleMode = scaleMode;
+
     if (texture->native) {
         return SDL_SetTextureScaleMode(texture->native, scaleMode);
-    } else {
-        renderer->SetTextureScaleMode(renderer, texture, scaleMode);
     }
     return true;
 }
@@ -5276,9 +5270,8 @@ bool SDL_RenderPresent(SDL_Renderer *renderer)
 
     CHECK_RENDERER_MAGIC(renderer, false);
 
-    SDL_Texture *target = renderer->target;
-    if (target) {
-        SDL_SetRenderTarget(renderer, NULL);
+    if (renderer->target) {
+        return SDL_SetError("You can't present on a render target");
     }
 
     SDL_RenderLogicalPresentation(renderer);
@@ -5297,10 +5290,6 @@ bool SDL_RenderPresent(SDL_Renderer *renderer)
 #endif
     if (!renderer->RenderPresent(renderer)) {
         presented = false;
-    }
-
-    if (target) {
-        SDL_SetRenderTarget(renderer, target);
     }
 
     if (renderer->simulate_vsync ||
@@ -5632,7 +5621,8 @@ bool SDL_SetRenderVSync(SDL_Renderer *renderer, int vsync)
     }
 #endif
 
-    if (!renderer->SetVSync) {
+    if (!renderer->SetVSync ||
+        !renderer->SetVSync(renderer, vsync)) {
         switch (vsync) {
         case 0:
             renderer->simulate_vsync = false;
@@ -5642,12 +5632,6 @@ bool SDL_SetRenderVSync(SDL_Renderer *renderer, int vsync)
             break;
         default:
             return SDL_Unsupported();
-        }
-    } else if (!renderer->SetVSync(renderer, vsync)) {
-        if (vsync == 1) {
-            renderer->simulate_vsync = true;
-        } else {
-            return false;
         }
     }
     SDL_SetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_VSYNC_NUMBER, vsync);
