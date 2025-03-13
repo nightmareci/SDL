@@ -663,21 +663,21 @@ void SDL_DelayNS(Uint64 ns)
 
 void SDL_DelayPrecise(Uint64 ns)
 {
-    // Non-hard-realtime platforms simply cannot give you the actual delay
+    // Non-hard-realtime platforms simply cannot give you the actual sleep
     // amount you want in a single delay request (SDL_Delay(), SDL_DelayNS()).
-    // A more sophisticated approach to delaying is required, to get the amount
+    // A more sophisticated approach to sleeping is required, to get the amount
     // you actually want.
     //
     // An unavoidable consequence of doing more computation than a trivial,
-    // single delay request is that precise delay always has a higher CPU/power
-    // usage cost, but this algorithm is aggressively designed to keep that
-    // under control. In fact, it actually gets increasingly CPU/power
-    // efficient over the total delay duration, as the total delay duration
-    // (the ns parameter) increases.
+    // single delay request is that precise delay always consumes more
+    // CPU/power than a single delay request, but this algorithm is
+    // aggressively designed to keep that under control. In fact, it actually
+    // gets increasingly CPU/power efficient over the total delay duration, as
+    // the total delay duration (the ns parameter) increases.
     //
     // This algorithm is designed around some assumptions that seem to always
     // hold across all platforms: When you request a delay duration N, on
-    // average you get an actual delay N + M, where M tends to be close to a
+    // average you get an actual sleep N + M, where M tends to be close to a
     // fixed value on average over a short term of repeated constant N delay
     // requests, with M being relatively small, generally below 1 ms. M can
     // occasionally spike to far higher values, perhaps several ms, due to
@@ -685,125 +685,105 @@ void SDL_DelayPrecise(Uint64 ns)
     // tends to sporadically produce overshoot spikes on the thread handling
     // video @nightmareci) or during high system load (CPU usage is near/at
     // 100%). Additionally, requesting delays of zero duration produce a small,
-    // roughly-constant delay, more than CPU pausing does, while having lower
-    // CPU/power cost than CPU pauses.
+    // roughly-constant sleep, more than CPU pausing does, while consuming less
+    // CPU/power than CPU pauses.
+    //
+    // Some platforms, namely Emscripten, only support 1 ms resolution sleeps,
+    // so as much of the sleep *must* be done with delay requests >=1 ms, doing
+    // as few sub-1 ms delays as possible at the end.
     //
     // Summary of the delay steps in the precise delay algorithm:
-    // 1. Bigger delays, when ns is large; reduces CPU/power usage a lot on
+    // 1. Bigger sleeps, when ns is large; reduces CPU/power usage a lot on
     //    some platforms (Activity Monitor on my M1 Mac mini running macOS
     //    seems to report this behavior @nightmareci), the algorithm's
     //    CPU/power efficiency here exponentially proportional to the total
     //    delay.
-    // 2. 1 ms delays when only a few ms is left to delay, while trying to
+    // 2. 1 ms sleeps when only a few ms is left to delay, while trying to
     //    undershoot.
-    // 3. 1 ms delays, accepting we may overshoot, when >2 ms is left by step 2
+    // 3. 1 ms sleeps, accepting we may overshoot, when >2 ms is left by step 2
     //    (step 2 undershot by >2 ms). Step 2 is designed to likely not
     //    undershoot by much, so this step is often skipped.
-    // 4. Zero-duration delays ("epsilon duration"), as they may take lower
-    //    CPU/power than CPU pauses.
+    // 4. Zero-duration sleeps, as they may consume less CPU/power than CPU
+    //    pauses.
     // 5. Spin loop using CPU pauses for the small remaining time.
 
     Uint64 current_value = SDL_GetTicksNS();
     const Uint64 target_value = current_value + ns;
-    Uint64 epsilon_ns = 0;
-    if (current_value >= target_value) {
-        return;
-    }
 
     // The short sleep duration to use when close to the deadline.
     // We'll use 1 ms, it's the minimum guaranteed to produce real sleeps across
     // all platforms.
     const Uint64 SHORT_SLEEP_NS = 1 * SDL_NS_PER_MS;
 
-    Uint64 target_delay_ns;
-    Uint64 current_delay_ns;
-    Uint64 max_sleep_ns;
-    Uint64 max_overshoot_ns = 0;
-
-    // At the end, we do a loop of zero-duration delays before the spin loop.
-    // Such delay loop iterations are longer than the spin loop's, and on some
-    // platforms, have lower CPU/power usage than spin loop iterations. Since
-    // at this point we have a lot of time remaining to delay, we can get an
-    // initialization value here for that penultimate loop, to avoid running
-    // even one zero-duration-delay loop iteration if we're extremely close to
-    // the deadline.
-    epsilon_ns = SDL_GetTicksNS();
-    SDL_SYS_DelayNS(0);
-    current_value = SDL_GetTicksNS();
-    if (current_value >= target_value) {
-        return;
-    }
-    epsilon_ns = current_value - epsilon_ns;
-
     if (ns <= 2 * SHORT_SLEEP_NS) {
         goto step_4;
     }
 
     // Delay step 1
-    // This loop does longish (>1 ms) iterative delays to reduce power usage
+    // This loop does longish (>=10 ms) iterative sleeps to reduce power usage
     // for larger values of ns, aiming to undershoot by a smallish amount so
     // the 1 ms loop below doesn't need to run that many times. The target
-    // delay duration, target_delay_ns, is reduced as the deadline approaches,
+    // sleep duration, target_sleep_ns, is reduced as the deadline approaches,
     // similar to Zeno's paradox of motion. The host platform may deprioritize
-    // the current thread for large values of total delay (>=1 s or so),
-    // resulting in larger overshoots in later steps vs. smaller total delays,
-    // but that can't be helped if we want to have CPU/power usage lower than
-    // never doing longish delays. And, in practice, the later steps still give
-    // more precise delay than an ordinary SDL_DelayNS(), producing a pretty
-    // consistent overshoot vs. highly inconsistent with just SDL_DelayNS().
-    target_delay_ns = ns / 10;
-    max_overshoot_ns = 0;
-    if (target_delay_ns > (10 * SHORT_SLEEP_NS)) {
-        current_delay_ns = target_delay_ns - SHORT_SLEEP_NS;
-        while (current_delay_ns > 10 * SHORT_SLEEP_NS && (current_value + target_delay_ns + (10 * SHORT_SLEEP_NS)) < target_value) {
-            SDL_SYS_DelayNS(current_delay_ns);
+    // the current thread for large values of ns (>=1 s or so), resulting in
+    // larger overshoots in later steps vs. smaller total sleeps, but that
+    // can't be helped if we want to consume less CPU/power than never doing
+    // longish sleeps. And, in practice, the later steps still give more
+    // precise delay than an ordinary SDL_DelayNS(), producing a pretty
+    // consistent and small small overshoot vs. large and highly inconsistent
+    // with just SDL_DelayNS().
+    Uint64 target_sleep_ns = ns / 10;
+    Uint64 max_overshoot_ns = 0;
+    if (target_sleep_ns >= (10 * SHORT_SLEEP_NS)) {
+        Uint64 current_sleep_ns = target_sleep_ns - SHORT_SLEEP_NS;
+        while ((current_sleep_ns >= 10 * SHORT_SLEEP_NS) && ((current_value + target_sleep_ns + (10 * SHORT_SLEEP_NS)) < target_value)) {
+            SDL_SYS_DelayNS(current_sleep_ns);
             const Uint64 now = SDL_GetTicksNS();
             if (now >= target_value) {
                 return;
             }
-            const Uint64 overshoot_ns = (now - current_value) - current_delay_ns;
+            const Uint64 overshoot_ns = (now - current_value) - current_sleep_ns;
             if (overshoot_ns > max_overshoot_ns) {
                 max_overshoot_ns = overshoot_ns;
             }
-            if (max_overshoot_ns >= target_delay_ns) {
+            if (max_overshoot_ns >= target_sleep_ns) {
                 max_overshoot_ns = 0;
             }
             current_value = now;
-            if ((current_value + target_delay_ns + (10 * SHORT_SLEEP_NS)) > target_value) {
+            if ((current_value + target_sleep_ns + (10 * SHORT_SLEEP_NS)) > target_value) {
                 for (
-                    target_delay_ns = (target_value - current_value) / 10;
-                    target_delay_ns > SHORT_SLEEP_NS && (current_value + target_delay_ns + (10 * SHORT_SLEEP_NS)) > target_value;
-                    target_delay_ns /= 10
+                    target_sleep_ns = (target_value - current_value) / 10;
+                    (target_sleep_ns > SHORT_SLEEP_NS) && ((current_value + target_sleep_ns + (10 * SHORT_SLEEP_NS)) > target_value);
+                    target_sleep_ns /= 10
                 );
-                if (target_delay_ns <= SHORT_SLEEP_NS) {
+                if (target_sleep_ns <= SHORT_SLEEP_NS) {
                     break;
                 }
-                if (max_overshoot_ns >= target_delay_ns) {
+                if (max_overshoot_ns >= target_sleep_ns) {
                     max_overshoot_ns = 0;
                 }
             }
-            current_delay_ns = target_delay_ns - max_overshoot_ns;
+            current_sleep_ns = target_sleep_ns - max_overshoot_ns;
         }
     }
 
     // Delay step 2
-    // When there's only a few ms left to delay, we want to be sure to do as
-    // much of the remaining delay as possible with 1 ms delays, to keep
+    // When there's only a few ms left to sleep, we want to be sure to do as
+    // much of the remaining sleep as possible with 1 ms sleeps, to keep
     // CPU/power usage down on 1 ms precision platforms.
     //
-    // We keep track of the maximum delay duration as we do iterative sleeps,
+    // We keep track of the maximum sleep duration as we do iterative sleeps,
     // to better guarantee we don't overshoot on the last iteration. Due to the
     // high variability in delay calls on basically all platforms at all times,
     // it's not correct to cache the maximum long-term. In practice, only
-    // keeping track of it per loop while the delay duration isn't changing
+    // keeping track of it per loop while the sleep duration isn't changing
     // works out well.
-    max_sleep_ns = SHORT_SLEEP_NS;
+    Uint64 max_sleep_ns = SHORT_SLEEP_NS;
     if (max_overshoot_ns < max_sleep_ns) {
         max_sleep_ns += max_overshoot_ns;
     }
     while ((current_value + max_sleep_ns) < target_value) {
         SDL_SYS_DelayNS(SHORT_SLEEP_NS);
-
         const Uint64 now = SDL_GetTicksNS();
         if (now >= target_value) {
             return;
@@ -817,8 +797,9 @@ void SDL_DelayPrecise(Uint64 ns)
 
     // Delay step 3
     // The above undershoot-attempting loop may undershoot several ms, but is
-    // unlikely to in practice, as overshoots tend to be under 1 ms. This
-    // ensures we do 1 ms delays to avoid high CPU/power usage in such cases.
+    // unlikely to do so in practice, as individual delay request overshoots
+    // tend to be under 1 ms. This ensures we do 1 ms sleeps to avoid high
+    // CPU/power usage in such cases.
     while ((current_value + (2 * SHORT_SLEEP_NS)) < target_value) {
         SDL_SYS_DelayNS(SHORT_SLEEP_NS);
         current_value = SDL_GetTicksNS();
@@ -828,30 +809,20 @@ void SDL_DelayPrecise(Uint64 ns)
     }
 
     // Delay step 4
-    // Zero-duration delays on many platforms have lower CPU/power usage than
-    // CPU pauses, so let's take advantage of that here.
+    // Zero-duration sleeps on many platforms consume less CPU/power than CPU
+    // pauses, so let's take advantage of that here. They're usually less than
+    // 1 ms, but are sometimes over 0.5 ms, so if there's <= 1 ms remaining, we
+    // can't reliably undershoot anymore. Nonzero sleeps below 1 ms have pretty
+    // inconsistent behavior on some platforms, even platforms supporting
+    // better than 1 ms resolution sleeps, so we don't use them here.
 step_4:
-    current_value = SDL_GetTicksNS();
-    if (current_value >= target_value) {
-        return;
-    }
-    max_sleep_ns = epsilon_ns;
-    while ((current_value + max_sleep_ns) < target_value) {
-        epsilon_ns = current_value;
+    while ((current_value + SHORT_SLEEP_NS) < target_value) {
         SDL_SYS_DelayNS(0);
         current_value = SDL_GetTicksNS();
-        if (current_value >= target_value) {
-            return;
-        }
-        epsilon_ns = current_value - epsilon_ns;
-        if (epsilon_ns > max_sleep_ns) {
-            max_sleep_ns = epsilon_ns;
-        }
     }
 
     // Delay step 5
     // Spin for any remaining time
-    current_value = SDL_GetTicksNS();
     while (current_value < target_value) {
         SDL_CPUPauseInstruction();
         current_value = SDL_GetTicksNS();
